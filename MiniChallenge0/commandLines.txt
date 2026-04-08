@@ -1,0 +1,19 @@
+ros2 topic pub -1 /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}"
+------------------------------------------------
+Twist message to stop Puzzlebot(Values range from -1 to 1)
+
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
+------------------------------------------------
+Control Puzzlebot through different keys
+  
+ros2 run joy joy_node
+           ros2 run teleop_twist_joy teleop_node --ros-args \
+           -p require_enable_button:=false \
+           -p axis_linear.x:=1 \
+           -p axis_angular.yaw:=0 \
+           -p scale_linear.x:=0.2 \
+          -p scale_angular.yaw:=0.5
+------------------------------------------------
+Control Puzzlebot through Joystick (Xbox Series X controller)
+All command lines were used with ROS_DOMAIN_ID=0 
+Velocity was limited after several tests, where abrupt changes or higher values led to our hackerboard being turned off. (Limiting the value to 0.2)
