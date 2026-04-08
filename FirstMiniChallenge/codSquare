@@ -43,7 +43,7 @@ class OpenLoopSquareCtrl(Node):
         self.angular_speed = 0.5   # rad/s
 
         # Define durations
-        self.forward_time = 2.0 / self.linear_speed        # Time to move 2 m
+        self.forward_time = 1.2 / self.linear_speed        # Time to move 1.2 m
         self.stop_time = 1.0                               # Stop for 1 second
         self.rotate_time = 1.5708 / self.angular_speed     # Time to rotate 90 deg
 
