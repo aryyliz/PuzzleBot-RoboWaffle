@@ -2,7 +2,7 @@
 
 sleep 20
 
-WEBHOOK_URL="https://discordapp.com/api/webhooks/1486887174963069059/ns_T7vkWa_QZptG1XOsV_5wX4qNyjusCHwfFwV2Z1k003o0AwJ4I1RefWfQwdhnddhb8"
+WEBHOOK_URL="..."
 
 
 HOSTNAME=$(hostname)
