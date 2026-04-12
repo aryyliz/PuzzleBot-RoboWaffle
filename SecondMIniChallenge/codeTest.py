@@ -11,19 +11,7 @@ class OpenLoopCtrl(Node):
     def __init__(self):
         super().__init__('open_loop_ctrl')
 
-        # Publisher a /cmd_vel
         self.cmd_vel_pub = self.create_publisher(Twist, 'cmd_vel', 10)
-
-        # Subscriber al topico que define la figura
-        # data:
-        # 1 = cuadrado
-        # 2 = rectangulo
-        # 3 = triangulo
-        # 4 = trapecio
-        # 5 = pentagono
-        # 6 = hexagono
-        # 7 = heptagono
-        # 8 = octagono
         self.figure_sub = self.create_subscription(
             Int32,
             'figure_cmd',
@@ -31,31 +19,21 @@ class OpenLoopCtrl(Node):
             10
         )
 
-        # Velocidades
-        self.linear_speed = 0.2    # m/s  -> velocidad maxima pedida
-        self.angular_speed = 0.6   # rad/s -> giro sobre su propio eje
+        # Limiting sppeds to protect our Hackerboard (0.2 gave us the most stable results)
+        self.linear_speed = 0.2
+        self.angular_speed = 0.6
 
-        # Timer de control
-        self.timer_period = 0.05   # 20 Hz
+        self.timer_period = 0.05   #20 Hz
         self.timer = self.create_timer(self.timer_period, self.control_loop)
-
-        # Estados
-        # 0 = idle
-        # 1 = forward
-        # 2 = stop_after_forward
-        # 3 = rotate
-        # 4 = stop_after_rotate
-        # 5 = finished
         self.state = 0
         self.state_start_time = self.get_clock().now()
 
-        # Variables de la figura actual
         self.figure_active = False
         self.current_step = 0
         self.side_distances = []
         self.turn_angles_deg = []
 
-        # Tiempos de pausa
+        # Pause times
         self.stop_time = 0.4
 
         self.get_logger().info('Nodo listo. Esperando un mensaje en /figure_cmd ...')
@@ -63,7 +41,7 @@ class OpenLoopCtrl(Node):
     def figure_callback(self, msg):
         data = msg.data
 
-        # Si ya esta ejecutando una figura, ignora nuevos comandos
+        # IF NEW COMMANDS ARRIVE WHILE ALREADY DRAWING, IGNORE COMMANDS
         if self.figure_active:
             self.get_logger().info('Ya estoy dibujando una figura. Comando ignorado.')
             return
@@ -82,29 +60,24 @@ class OpenLoopCtrl(Node):
         self.get_logger().info(f'Figura recibida con data = {data}. Iniciando trayectoria...')
 
     def load_figure_plan(self, data):
-        # Aqui defines las distancias de cada lado (en metros)
-        # y los angulos de giro (en grados) despues de cada lado.
-
-        # Figuras regulares:
-        # angulo exterior = 360 / numero_de_lados
-
+        #sides are measured in meters (lab squares are approximately 0.6 by 0.6 meters)
         if data == 1:
-            # Cuadrado
-            side = 0.5
+            # Square
+            side = 1.2
             self.side_distances = [side, side, side, side]
             self.turn_angles_deg = [90.0, 90.0, 90.0, 90.0]
             return True
 
         elif data == 2:
-            # Rectangulo
-            long_side = 0.8
-            short_side = 0.4
+            # Rectangle
+            long_side = 2.4
+            short_side = 0.6
             self.side_distances = [long_side, short_side, long_side, short_side]
             self.turn_angles_deg = [90.0, 90.0, 90.0, 90.0]
             return True
 
         elif data == 3:
-            # Triangulo equilatero
+            # Equalateral Triangle
             sides = 3
             side = 0.5
             angle = 360.0 / sides
@@ -113,52 +86,45 @@ class OpenLoopCtrl(Node):
             return True
 
         elif data == 4:
-            # Trapecio isosceles aproximado
-            # Puedes cambiar estas medidas si quieres otro trapecio
-            base_mayor = 0.8
-            lado = 0.4
-            base_menor = 0.4
-
-            # Secuencia de lados:
-            # base mayor -> lado inclinado -> base menor -> lado inclinado
-            self.side_distances = [base_mayor, lado, base_menor, lado]
-
-            # Angulos exteriores aproximados
-            # Ajustables segun el trapecio que quieras
+            # Trapezoid
+            Base = 0.8
+            side = 0.4
+            base = 0.4
+            self.side_distances = [Base, side, base, side]
             self.turn_angles_deg = [120.0, 60.0, 120.0, 60.0]
             return True
 
         elif data == 5:
-            # Pentagono regular
+            # Pentagon
             sides = 5
-            side = 0.4
+            side = 0.5
             angle = 360.0 / sides
             self.side_distances = [side] * sides
             self.turn_angles_deg = [angle] * sides
             return True
 
         elif data == 6:
-            # Hexagono regular
+            # Hexagon
             sides = 6
-            side = 0.35
+            side = 0.5
             angle = 360.0 / sides
             self.side_distances = [side] * sides
             self.turn_angles_deg = [angle] * sides
             return True
 
         elif data == 7:
-            # Heptagono regular
+            # Heptagon
             sides = 7
-            side = 0.3
+            side = 0.5
             angle = 360.0 / sides
             self.side_distances = [side] * sides
             self.turn_angles_deg = [angle] * sides
             return True
 
         elif data == 8:
-            # Octagono regular
+            # octagon
             sides = 8
-            side = 0.25
+            side = 0.5
             angle = 360.0 / sides
             self.side_distances = [side] * sides
             self.turn_angles_deg = [angle] * sides
@@ -172,7 +138,7 @@ class OpenLoopCtrl(Node):
         now = self.get_clock().now()
         elapsed_time = (now - self.state_start_time).nanoseconds * 1e-9
 
-        # Estado idle
+        # Idle
         if self.state == 0:
             cmd.linear.x = 0.0
             cmd.angular.z = 0.0
@@ -183,7 +149,7 @@ class OpenLoopCtrl(Node):
         if self.current_step >= len(self.side_distances):
             self.state = 5
 
-        # Estado 1: avanzar
+        # Forward
         if self.state == 1:
             current_distance = self.side_distances[self.current_step]
             forward_time = current_distance / self.linear_speed
@@ -196,7 +162,7 @@ class OpenLoopCtrl(Node):
                 self.state_start_time = now
                 self.get_logger().info(f'Lado {self.current_step + 1} completado. Pausa antes del giro.')
 
-        # Estado 2: detenerse despues de avanzar
+        # Stop after Going Forward
         elif self.state == 2:
             cmd.linear.x = 0.0
             cmd.angular.z = 0.0
@@ -209,7 +175,7 @@ class OpenLoopCtrl(Node):
                     f'Girando {angle_deg:.2f} grados sobre su propio eje...'
                 )
 
-        # Estado 3: girar sobre su propio eje
+        # Spin
         elif self.state == 3:
             angle_deg = self.turn_angles_deg[self.current_step]
             angle_rad = math.radians(angle_deg)
@@ -223,7 +189,7 @@ class OpenLoopCtrl(Node):
                 self.state_start_time = now
                 self.get_logger().info(f'Giro {self.current_step + 1} completado.')
 
-        # Estado 4: detenerse despues de girar
+        # Stop Spin
         elif self.state == 4:
             cmd.linear.x = 0.0
             cmd.angular.z = 0.0
@@ -240,7 +206,7 @@ class OpenLoopCtrl(Node):
                     self.state_start_time = now
                     self.get_logger().info(f'Iniciando lado {self.current_step + 1}...')
 
-        # Estado 5: terminado
+        # Go back to Idle
         elif self.state == 5:
             cmd.linear.x = 0.0
             cmd.angular.z = 0.0
