@@ -91,7 +91,7 @@ class OpenLoopCtrl(Node):
             side = 0.4
             base = 0.4
             self.side_distances = [Base, side, base, side]
-            self.turn_angles_deg = [120.0, 60.0, 120.0, 60.0]
+            self.turn_angles_deg = [120.0, 60.0, 60.0, 120.0]
             return True
 
         elif data == 5:
